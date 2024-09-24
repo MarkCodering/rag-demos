@@ -1,0 +1,6 @@
+langchain_community
+transformers
+gradio
+sentence-transformers
+accelerate
+bitsandbytes
