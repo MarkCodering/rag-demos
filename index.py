@@ -84,12 +84,12 @@ async def generate_response(prompt: str = Form(...)):
         )
 
         output = pipe(str(rag_prompt))
-        print(output[0]["generated_text"][-1]["content"])
+        print(output[0]["generated_text"])
 
         return {
             "prompt": prompt,
             "context": context,
-            "response": output[0]["generated_text"][-1]["content"],
+            "response": output[0]["generated_text"],
         }
 
     except Exception as e:
