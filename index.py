@@ -25,6 +25,21 @@ class ResponseModel(BaseModel):
     context: str
     response: str
 
+def extract_model_response(full_response):
+    # The key part of the full response that we want starts after this phrase
+    delimiter = "Please provide a helpful response to the user."
+    
+    # Find the index of the delimiter
+    start_index = full_response.find(delimiter)
+    
+    if start_index != -1:
+        # The actual model response starts after the delimiter
+        # Add length of the delimiter to start_index to get the actual response
+        model_response = full_response[start_index + len(delimiter):].strip()
+        return model_response
+    else:
+        return "No valid response found."
+
 
 # Load model and set up necessary components when the app starts
 @app.on_event("startup")
@@ -83,13 +98,14 @@ async def generate_response(prompt: str = Form(...)):
             "Please provide a helpful response to the user."
         )
 
-        output = pipe(str(rag_prompt))
-        print(output[0]["generated_text"])
+        response = pipe(str(rag_prompt), max_new_tokens=512)
+        output = response[0]['generated_text']
+        print(extract_model_response(output))
 
         return {
             "prompt": prompt,
             "context": context,
-            "response": output[0]["generated_text"],
+            "response": extract_model_response(output),
         }
 
     except Exception as e:
