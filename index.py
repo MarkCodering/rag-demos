@@ -57,10 +57,17 @@ async def startup_event():
     loader = PyPDFLoader("./data/falcon-users-guide-2021-09-compressed.pdf")
     document = loader.load()
 
-    document_1 = Document(
-        page_content=document[0].page_content,
-        id=1,
-    )
+    print(len(document))
+    documents = []
+
+    for i, page in enumerate(document):
+        print(f"Page {i + 1}: {page.page_content[:100]}")
+        documents.append(
+            Document(
+                page_content=page.page_content,
+                id=i,
+            )
+        )
 
     # Initialize the Chroma vector store
     vector_store = Chroma(
@@ -69,8 +76,6 @@ async def startup_event():
         persist_directory="./chroma_langchain_db",
     )
 
-    # Add the document to the vector store
-    documents = [document_1]
     uuids = [str(uuid4()) for _ in range(len(documents))]
     vector_store.add_documents(documents=documents, ids=uuids)
 
@@ -82,6 +87,28 @@ async def startup_event():
         model_kwargs={"load_in_4bit": True},
     )
 
+# Add a path to upload a document
+@app.post("/upload_document")
+async def upload_document(file: bytes = Form(...)):
+    try:
+        # Load the document
+        loader = PyPDFLoader(file)
+        document = loader.load()
+
+        # Create a document object
+        document = Document(
+            page_content=document[0].page_content,
+            id=1,
+        )
+
+        # Add the document to the vector store
+        vector_store.add_documents(startupdocuments=[document], ids=[str(uuid4())])
+
+        return {"message": "Document uploaded successfully."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 # Define the POST endpoint
 @app.post("/generate_response", response_model=ResponseModel)
