@@ -4,3 +4,4 @@ gradio
 sentence-transformers
 accelerate
 bitsandbytes
+uvicorn
