@@ -1,35 +1,54 @@
 import gradio as gr
 import requests
 
-# Function to send prompt to FastAPI server and get the response
+# Function to chat with the FastAPI server
 def chat_with_fastapi(prompt):
-    # Send a POST request to FastAPI server
+    # Let's talk to the FastAPI server
     url = "http://localhost:8080/generate_response"
-    response = requests.post(url, data={'prompt': prompt})
-    
-    if response.status_code == 200:
-        result = response.json()
-        return result['response']
-    else:
-        return "Error: Unable to connect to FastAPI server."
+    try:
+        response = requests.post(url, data={'prompt': prompt})
+        if response.status_code == 200:
+            result = response.json()
+            return result['response']
+        else:
+            return "Hmm, I couldn't connect to the FastAPI server. Please try again later."
+    except requests.exceptions.RequestException as e:
+        return f"Oops, something went wrong: {e}"
 
-# Create a Gradio Chat Interface
+# Gradio Chatbot Interface
 def gradio_chatbot(prompt):
+    # Get the response from our FastAPI friend
     response = chat_with_fastapi(prompt)
     return response
 
-# Define Gradio Interface
+# Setting up our Gradio chat interface with message stream
 with gr.Blocks() as demo:
-    msg = gr.Textbox(placeholder="Enter your prompt here...", label="Prompt")
-    output = gr.Textbox(label="Model Output")
-    clear = gr.Button("Clear")
+    chat_history = gr.State([])  # To keep track of the conversation
 
-    def submit_message(user_message):
+    with gr.Row() as msg:
+        # Textbox for user input
+        msg = gr.Textbox(lines=1, placeholder="Type your message here...", label="User")
+        # Button to clear the chat history
+        clear = gr.Button("Clear Chat")
+        
+    # Textbox to display the chat history
+    output = gr.Textbox(lines=10, placeholder="Chat history will appear here...", label="Chatbot")
+
+    def submit_message(user_message, chat_history):
+        # Append user message to chat history
+        chat_history.append(("User", user_message))
+        # Get chatbot response
         response = gradio_chatbot(user_message)
-        return response
+        # Append chatbot response to chat history
+        chat_history.append(("Chatbot", response))
+        # Format chat history for display
+        formatted_history = "\n".join([f"{role}: {message}" for role, message in chat_history])
+        return formatted_history, chat_history
 
-    msg.submit(submit_message, inputs=msg, outputs=output)
-    clear.click(lambda: "", None, output, queue=False)
+    # When you hit enter, let's send the message and update the chat history
+    msg.submit(submit_message, inputs=[msg, chat_history], outputs=[output, chat_history])
+    # Clear the chat when you click the button
+    clear.click(lambda: ("", []), None, [output, chat_history], queue=False)
 
-# Launch the Gradio app
+# Time to launch our chat!
 demo.launch()
