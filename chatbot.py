@@ -23,8 +23,6 @@ def gradio_chatbot(prompt):
 
 # Setting up our Gradio chat interface with message stream
 with gr.Blocks() as demo:
-    chat_history = gr.State([])  # To keep track of the conversation
-
     with gr.Row() as msg:
         # Textbox for user input
         msg = gr.Textbox(lines=1, placeholder="Type your message here...", label="User")
@@ -34,21 +32,17 @@ with gr.Blocks() as demo:
     # Textbox to display the chat history
     output = gr.Textbox(lines=10, placeholder="Chat history will appear here...", label="Chatbot")
 
-    def submit_message(user_message, chat_history):
-        # Append user message to chat history
-        chat_history.append(("User", user_message))
+    def submit_message(user_message):
         # Get chatbot response
         response = gradio_chatbot(user_message)
         # Append chatbot response to chat history
-        chat_history.append(("Chatbot", response))
-        # Format chat history for display
-        formatted_history = "\n".join([f"{role}: {message}" for role, message in chat_history])
-        return formatted_history, chat_history
+
+        return response
 
     # When you hit enter, let's send the message and update the chat history
-    msg.submit(submit_message, inputs=[msg, chat_history], outputs=[output, chat_history])
+    msg.submit(submit_message, inputs=[msg], outputs=[output])
     # Clear the chat when you click the button
-    clear.click(lambda: ("", []), None, [output, chat_history], queue=False)
+    clear.click(lambda: ("", []), None, [output], queue=False)
 
 # Time to launch our chat!
 demo.launch()
