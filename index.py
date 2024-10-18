@@ -1,3 +1,4 @@
+import os
 import torch
 from fastapi import FastAPI, HTTPException, Form
 from pydantic import BaseModel
@@ -44,7 +45,7 @@ def extract_model_response(full_response):
 # Load model and set up necessary components when the app starts
 @app.on_event("startup")
 async def startup_event():
-    global openai_embedding, vector_store, pipe, document_1
+    global embeddings, vector_store, pipe, document_1, collection, uuids
 
     # HuggingFace Embeddings
     embeddings = HuggingFaceEmbeddings(
@@ -54,56 +55,53 @@ async def startup_event():
     )
     
     # Load the document (replace with the correct path to your PDF)
-    loader = PyPDFLoader("./data/falcon-users-guide-2021-09-compressed.pdf")
-    document = loader.load()
-
-    print(len(document))
+    pdfs = []
+    num_files = os.listdir("./data")
+    for file in num_files:
+        pdfs.append(f"./data/{file}")
+        
     documents = []
-
-    for i, page in enumerate(document):
-        print(f"Page {i + 1}: {page.page_content[:100]}")
-        documents.append(
-            Document(
-                page_content=page.page_content,
-                id=i,
-            )
-        )
+    
+    for pdf in pdfs:
+        loader = PyPDFLoader(file_path=pdf)
+        document = loader.load()
+        documents.append(document)
 
     # Initialize the Chroma vector store
     vector_store = chromadb.HttpClient(host="http://localhost:8000", port=8000)
-
+    collection = vector_store.get_or_create_collection("startupdocuments")
+    
     uuids = [str(uuid4()) for _ in range(len(documents))]
-    vector_store.add(
-        embeddings=embeddings,
-        documents=[document for document in documents],
-        ids=uuids,
-    )
 
     pipe = pipeline(
         "text-generation",
         model="meta-llama/Meta-Llama-3-8B-Instruct",
         torch_dtype=torch.bfloat16,
         device_map="auto",
-        model_kwargs={"load_in_4bit": True},
     )
 
 
-# Add a path to upload a document
+# Add a path to upload a document in pdf
 @app.post("/upload_document")
 async def upload_document(file: bytes = Form(...)):
     try:
-        # Load the document
-        loader = PyPDFLoader(file)
-        document = loader.load()
+        # Download the file and load it
+        print(file.filename)
+        with open(f"./data/{file.filename}", "wb") as f:
+            f.write(file)
+        
+        loader = PyPDFLoader()
+        document = loader.load(file_path=f"./data/{file.filename}")
 
-        # Create a document object
-        document = Document(
-            page_content=document[0].page_content,
-            id=1,
-        )
+        contents = []
+        for page in document:
+            contents.append(page.page_content)
 
         # Add the document to the vector store
-        vector_store.add_documents(startupdocuments=[document], ids=[str(uuid4())])
+        collection.add(
+            document=contents,
+            id=[str(uuid4()) for _ in range(len(document))],
+        )
 
         return {"message": "Document uploaded successfully."}
 
@@ -117,8 +115,13 @@ async def upload_document(file: bytes = Form(...)):
 async def generate_response(prompt: str = Form(...)):
     try:
         # Perform similarity search
-        results = vector_store.similarity_search(prompt, k=5)
-        context = results[0].page_content if results else "No relevant context found."
+        results = collection.query(
+            query=prompt,
+            k=1,
+            model=embeddings,
+        )
+        print(results)
+        context = results[0][0]["documents"]
 
         # Generate the response using the LLM
         rag_prompt = (
@@ -144,4 +147,4 @@ async def generate_response(prompt: str = Form(...)):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="localhost", port=3000)

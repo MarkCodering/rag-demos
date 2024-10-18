@@ -7,3 +7,4 @@ bitsandbytes
 uvicorn
 chromadb
 pypdf
+huggingface_hub[cli]
