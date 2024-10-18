@@ -5,9 +5,8 @@ from uuid import uuid4
 from transformers import pipeline, BitsAndBytesConfig
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
-from langchain_openai import OpenAI
 from langchain_core.documents import Document
-from langchain_chroma import Chroma
+import chromadb
 
 app = FastAPI()
 quantization_config = BitsAndBytesConfig(
@@ -48,19 +47,12 @@ async def startup_event():
     global openai_embedding, vector_store, pipe, document_1
 
     # HuggingFace Embeddings
-    """
     embeddings = HuggingFaceEmbeddings(
         model_name="all-mpnet-base-v2",
         model_kwargs={"device": "cuda"},
         show_progress=True,
     )
-    """
-
-    openai_embedding = OpenAIEmbeddings(
-        model="text-embedding-3-large",
-        dimensions=768
-    )
-
+    
     # Load the document (replace with the correct path to your PDF)
     loader = PyPDFLoader("./data/falcon-users-guide-2021-09-compressed.pdf")
     document = loader.load()
@@ -78,16 +70,15 @@ async def startup_event():
         )
 
     # Initialize the Chroma vector store
-    vector_store = Chroma(
-        collection_name="example_collection",
-        embedding_function=openai_embedding,
-        persist_directory="./chroma_langchain_db",
-    )
+    vector_store = chromadb.HttpClient(host="http://localhost:8000", port=8000)
 
     uuids = [str(uuid4()) for _ in range(len(documents))]
-    vector_store.add_documents(documents=documents, ids=uuids)
+    vector_store.add(
+        embeddings=embeddings,
+        documents=[document for document in documents],
+        ids=uuids,
+    )
 
-    """
     pipe = pipeline(
         "text-generation",
         model="meta-llama/Meta-Llama-3-8B-Instruct",
@@ -95,7 +86,6 @@ async def startup_event():
         device_map="auto",
         model_kwargs={"load_in_4bit": True},
     )
-    """
 
 
 # Add a path to upload a document
@@ -122,7 +112,7 @@ async def upload_document(file: bytes = Form(...)):
 
 
 # Define the POST endpoint
-"""
+
 @app.post("/generate_response", response_model=ResponseModel)
 async def generate_response(prompt: str = Form(...)):
     try:
@@ -139,34 +129,6 @@ async def generate_response(prompt: str = Form(...)):
 
         response = pipe(str(rag_prompt), max_new_tokens=512)
         output = response[0]["generated_text"]
-        print(extract_model_response(output))
-
-        return {
-            "prompt": prompt,
-            "context": context,
-            "response": extract_model_response(output),
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-"""
-# Define the POST endpoint
-@app.post("/generate_response", response_model=ResponseModel)
-async def generate_response(prompt: str = Form(...)):
-    try:
-        # Perform similarity search
-        results = vector_store.similarity_search(prompt, k=3)
-        context = results[0].page_content if results else "No relevant context found."
-
-        # Generate the response using the LLM
-        rag_prompt = (
-            f"You are a helpful engineer who is trying to help a user with a problem. "
-            f"The user has a problem statement: {prompt}. The user has provided the following context: {context}. "
-            "Please provide a helpful response to the user."
-        )
-
-        llm = OpenAI()
-        output = llm.invoke(rag_prompt)
         print(extract_model_response(output))
 
         return {

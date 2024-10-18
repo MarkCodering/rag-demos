@@ -5,3 +5,5 @@ sentence-transformers
 accelerate
 bitsandbytes
 uvicorn
+chromadb
+pypdf
