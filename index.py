@@ -1,12 +1,11 @@
 import os
 import torch
-from fastapi import FastAPI, HTTPException, Form, UploadFile
+from fastapi import FastAPI, HTTPException, Form, UploadFile, File
 from pydantic import BaseModel
 from uuid import uuid4
 from transformers import pipeline, BitsAndBytesConfig
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings, OpenAIEmbeddings
-from langchain_core.documents import Document
+from langchain_community.embeddings import HuggingFaceEmbeddings
 import chromadb
 
 app = FastAPI()
@@ -81,8 +80,12 @@ async def startup_event():
     )
 
 @app.post("/upload_document")
-async def upload_document(file: UploadFile = Form(...)):
+async def upload_document(file: UploadFile = File(...)):
     try:
+        # Ensure the ./data directory exists
+        if not os.path.exists("./data"):
+            os.makedirs("./data")
+        
         # Save the uploaded file to the ./data directory
         file_location = f"./data/{file.filename}"
         
@@ -90,9 +93,9 @@ async def upload_document(file: UploadFile = Form(...)):
         with open(file_location, "wb") as f:
             f.write(await file.read())
 
-        # Load the document using PyPDFLoader
-        loader = PyPDFLoader()
-        document = loader.load(file_path=file_location)
+        # Load the document using PyPDFLoader with the correct file path
+        loader = PyPDFLoader(file_path=file_location)
+        document = loader.load()
 
         contents = []
         for page in document:
@@ -100,8 +103,8 @@ async def upload_document(file: UploadFile = Form(...)):
 
         # Add the document to the vector store
         collection.add(
-            document=contents,
-            id=[str(uuid4()) for _ in range(len(document))],
+            documents=contents,
+            ids=[str(uuid4()) for _ in range(len(contents))],
         )
 
         return {"message": "Document uploaded successfully."}
@@ -115,12 +118,10 @@ async def generate_response(prompt: str = Form(...)):
     try:
         # Perform similarity search
         results = collection.query(
-            query=prompt,
-            k=1,
-            model=embeddings,
+            query_texts=prompt,
+            n_results=10,
         )
-        print(results)
-        context = results[0][0]["documents"]
+        context = results["documents"][0][0]
 
         # Generate the response using the LLM
         rag_prompt = (

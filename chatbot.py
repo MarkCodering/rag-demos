@@ -2,7 +2,7 @@ import gradio as gr
 import requests
 
 # Constants
-FASTAPI_URL = "http://localhost:8080/generate_response"
+FASTAPI_URL = "http://localhost:3000/generate_response"
 
 # Function to chat with the FastAPI server
 def chat_with_fastapi(prompt):
