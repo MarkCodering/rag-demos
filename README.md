@@ -51,24 +51,26 @@ python <script-name>.py
 Enter a Prompt: When prompted, enter a query or problem statement. The script will search for relevant content in the loaded document and generate a response.
 
 ## How It Works
-Document Loading: The PyPDFLoader loads the specified PDF document and extracts its content.
-Embeddings: The HuggingFaceEmbeddings model generates embeddings for the document content.
-Vector Store: The Chroma vector store saves the document embeddings and facilitates similarity searches.
-Similarity Search: The script performs a similarity search using the user's prompt to find the most relevant document content.
-Response Generation: A language model pipeline generates a context-aware response based on the search results and user prompt.
-Configuration
-Model Configuration: You can change the model used for embeddings and response generation by modifying the model_name and model_kwargs parameters.
-Document Path: Update the path in PyPDFLoader to load a different PDF document.
-Vector Store Directory: Change the persist_directory in Chroma to specify where to save the vector store data.
-Contributing
+- Document Loading: The PyPDFLoader loads the specified PDF document and extracts its content.
+- Embeddings: The HuggingFaceEmbeddings model generates embeddings for the document content.
+- Vector Store: The Chroma vector store saves the document embeddings and facilitates similarity searches.
+- Similarity Search: The script performs a similarity search using the user's prompt to find the most relevant document content.
+- Response Generation: A language model pipeline generates a context-aware response based on the search results and user prompt.
+#### Configuration
+- Model Configuration: You can change the model used for embeddings and response generation by modifying the model_name and model_kwargs parameters.
+- Document Path: Update the path in PyPDFLoader to load a different PDF document.
+- Vector Store Directory: Change the persist_directory in Chroma to specify where to save the vector store data.
+
+## Contributing
 Contributions are welcome! Please feel free to submit a pull request or open an issue for any bugs or feature requests.
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for more details.
 
 ## Acknowledgements
-Hugging Face Transformers
-Langchain
-Chroma
-Contact
+- Hugging Face Transformers
+- Langchain
+- Chroma
+
+##  Contact
 For any questions or feedback, please contact Mark at mark@mindifyai.dev
