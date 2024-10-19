@@ -1,6 +1,6 @@
 import os
 import torch
-from fastapi import FastAPI, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Form, UploadFile
 from pydantic import BaseModel
 from uuid import uuid4
 from transformers import pipeline, BitsAndBytesConfig
@@ -80,18 +80,19 @@ async def startup_event():
         device_map="auto",
     )
 
-
-# Add a path to upload a document in pdf
 @app.post("/upload_document")
-async def upload_document(file: bytes = Form(...)):
+async def upload_document(file: UploadFile = Form(...)):
     try:
-        # Download the file and load it
-        print(file.filename)
-        with open(f"./data/{file.filename}", "wb") as f:
-            f.write(file)
+        # Save the uploaded file to the ./data directory
+        file_location = f"./data/{file.filename}"
         
+        # Write the file content to the specified location
+        with open(file_location, "wb") as f:
+            f.write(await file.read())
+
+        # Load the document using PyPDFLoader
         loader = PyPDFLoader()
-        document = loader.load(file_path=f"./data/{file.filename}")
+        document = loader.load(file_path=file_location)
 
         contents = []
         for page in document:
@@ -108,9 +109,7 @@ async def upload_document(file: bytes = Form(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# Define the POST endpoint
-
+# Define the POST endpoint for generating a response
 @app.post("/generate_response", response_model=ResponseModel)
 async def generate_response(prompt: str = Form(...)):
     try:
