@@ -1,34 +1,36 @@
 import gradio as gr
 import requests
 
-# Function to send prompt to FastAPI server and get the response
+# Constants
+FASTAPI_URL = "http://localhost:8080/generate_response"
+
+# Function to chat with the FastAPI server
 def chat_with_fastapi(prompt):
-    # Send a POST request to FastAPI server
-    url = "http://localhost:8080/generate_response"
-    response = requests.post(url, data={'prompt': prompt})
-    
-    if response.status_code == 200:
+    """Send a prompt to the FastAPI server and return the response."""
+    try:
+        response = requests.post(FASTAPI_URL, data={'prompt': prompt})
+        response.raise_for_status()  # Raise an error for bad responses
         result = response.json()
-        return result['response']
-    else:
-        return "Error: Unable to connect to FastAPI server."
+        return result.get('response', "No response found.")
+    except requests.exceptions.RequestException as e:
+        return f"Oops, something went wrong: {e}"
 
-# Create a Gradio Chat Interface
+# Gradio Chatbot Interface
 def gradio_chatbot(prompt):
-    response = chat_with_fastapi(prompt)
-    return response
+    """Get the response from the FastAPI server for a given prompt."""
+    return chat_with_fastapi(prompt)
 
-# Define Gradio Interface
+# Setting up the Gradio chat interface
 with gr.Blocks() as demo:
-    msg = gr.Textbox(placeholder="Enter your prompt here...", label="Prompt")
-    output = gr.Textbox(label="Model Output")
-    clear = gr.Button("Clear")
+    with gr.Row():
+        msg = gr.Textbox(lines=1, placeholder="Type your message here...", label="User")
+        clear = gr.Button("Clear Chat")
 
-    def submit_message(user_message):
-        response = gradio_chatbot(user_message)
-        return response
+    output = gr.Textbox(lines=2, placeholder="Chatbot response will appear here...", label="Chatbot", interactive=False)
 
-    msg.submit(submit_message, inputs=msg, outputs=output)
+    # Bind the submit function to the message input
+    msg.submit(lambda user_message: gradio_chatbot(user_message), inputs=msg, outputs=output)
+    # Clear the chat when the button is clicked
     clear.click(lambda: "", None, output, queue=False)
 
 # Launch the Gradio app
