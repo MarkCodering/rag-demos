@@ -52,15 +52,15 @@ async def startup_event():
         model_kwargs={"device": "cuda"},
         show_progress=True,
     )
-    
+
     # Load the document (replace with the correct path to your PDF)
     pdfs = []
     num_files = os.listdir("./data")
     for file in num_files:
         pdfs.append(f"./data/{file}")
-        
+
     documents = []
-    
+
     for pdf in pdfs:
         loader = PyPDFLoader(file_path=pdf)
         document = loader.load()
@@ -69,7 +69,7 @@ async def startup_event():
     # Initialize the Chroma vector store
     vector_store = chromadb.HttpClient(host="http://localhost:8000", port=8000)
     collection = vector_store.get_or_create_collection("startupdocuments")
-    
+
     uuids = [str(uuid4()) for _ in range(len(documents))]
 
     pipe = pipeline(
@@ -79,16 +79,17 @@ async def startup_event():
         device_map="auto",
     )
 
+
 @app.post("/upload_document")
 async def upload_document(file: UploadFile = File(...)):
     try:
         # Ensure the ./data directory exists
         if not os.path.exists("./data"):
             os.makedirs("./data")
-        
+
         # Save the uploaded file to the ./data directory
         file_location = f"./data/{file.filename}"
-        
+
         # Write the file content to the specified location
         with open(file_location, "wb") as f:
             f.write(await file.read())
@@ -111,6 +112,7 @@ async def upload_document(file: UploadFile = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Define the POST endpoint for generating a response
 @app.post("/generate_response", response_model=ResponseModel)
@@ -142,6 +144,7 @@ async def generate_response(prompt: str = Form(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # Run the application if executed as a script
 if __name__ == "__main__":
